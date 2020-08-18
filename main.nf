@@ -1,4 +1,4 @@
-!#/usr/bin/env nextflow
+#!/usr/bin/env nextflow
 
 // enable dsl 2
 nextflow.enable.dsl = 2
@@ -6,15 +6,12 @@ nextflow.enable.dsl = 2
 * Pipeline Input Parameter
 */
 params.reads = "test-datasets/testdata/*{1,2}.fastq.gz"
-Channel.fromFilePairs(params.reads).into{reads_ch; reads_fastqc_ch}
+Channel.fromFilePairs(params.reads).set{read_pairs_ch}
 params.fasta = "test-datasets/reference/genome.fa"
 params.gtf = "test-datasets/reference/genome.gtf"
 params.outdir = "results"
 params.aligner = "bwa"
 params.minNonOverlap = 10
-
-
-
 
 name = "$workflow.runName"
 
@@ -31,10 +28,8 @@ log.info """\
       """
       .stripIndent()
 
-Channel.fromPath(params.fasta).into{fasta_for_bwaindex_ch; fasta_ch}
-Channel.fromPath(params.gtf).set{bwa_index_gtf}
-
-fasta_ch.view()
+Channel.fromPath(params.fasta).set{fasta_ch}
+//Channel.fromPath(params.gtf).set{bwa_index_gtf}
 
 if ( params.fasta.isEmpty () ){
     exit 1, "Please specify --fasta with the path to your reference"
@@ -53,7 +48,7 @@ if ( params.fasta.isEmpty () ){
         file zipped_fasta
 
         output:
-        file "*.{fa,fn,fna,fasta}" into ch_fasta_for_bwaindex
+        file "*.{fa,fn,fna,fasta}" into fasta_for_bwaindex_ch
 
         script:
         rm_zip = zipped_fasta - '.gz'
@@ -64,7 +59,7 @@ if ( params.fasta.isEmpty () ){
     } else {
     fasta_for_indexing = Channel
     .fromPath("${params.fasta}", checkIfExists: true)
-    .set{ ch_fasta_for_bwaindex }
+    .set{ fasta_for_bwaindex_ch }
 
     lastPath = params.fasta.lastIndexOf(File.separator)
     bwa_base = params.fasta.substring(lastPath+1)
@@ -74,13 +69,13 @@ if ( params.fasta.isEmpty () ){
 process fastqc {
   tag "${sample_id}"
 
-  publishDir "results/fastqc", mode: "copy"
+  publishDir "${params.outdir}/fastqc", mode: "copy"
 
   input:
-  tuple val(sample_id), file(reads_file) from reads_fastqc_ch
+  tuple val(sample_id), file(reads_file)
 
   output:
-  file "fastqc_${sample_id}_logs" into fastqc_ch
+  file("fastqc_${sample_id}_logs")
 
   script:
   """
@@ -90,14 +85,14 @@ process fastqc {
 }
 
 process makeBWAindex {
-  // cpus 2 <- use 2 cpus 
+  // cpus 2 <- use 2 cpus
   tag "${fasta}"
   //publishDir "results/bwaIndex", mode: "copy"
   input:
   path fasta
 
   output:
-  file "BWAindex" 
+  file "BWAindex"
 
   script:
   """
@@ -109,19 +104,17 @@ process makeBWAindex {
 // $task.cpus -> how many cpus used
 
 process bwamem {
-  publishDir  "results/mapping/bwamem", mode: "copy"
+  publishDir  "${params.outdir}/mapping/bwamem", mode: "copy"
   tag "${sample_id}"
   when: params.aligner == "bwa"
 
   input:
   tuple val(sample_id), file(reads_file)
-  // file index from bwa_index_ch.collect()
+  // file index from bdeclarationwa_index_ch.collect()
   file index
 
   output:
-  file "*" into ch_output_from_bwamem
-  val (sample_id) into sample_id_ch2
-  //file "*.{bai,csi}" into ch_outputindex_from_bwamem
+  tuple val(sample_id), file("*.mapped.sam")
 
   script:
   index_path = "${index}/${bwa_base}"
@@ -131,20 +124,17 @@ process bwamem {
 }
 
 process samblaster {
-  publishDir  "results/samblaster", mode: "copy"
+  publishDir  "${params.outdir}/samblaster", mode: "copy"
   tag "${sample_id}"
 
   input:
-  file mapped_reads from ch_output_from_bwamem
-  val sample_id from sample_id_ch2
+  tuple val(sample_id), file(mapped_reads)
 
   output:
-  tuple val(sample_id), file("${sample_id}.disc.bam"), file("${sample_id}.split.bam"), file("${sample_id}.concordant.bam") into samblaster_bam_ch
-//  file "*.disc.sam" into samblaster_disc_ch
-//  file "*.split.sam" into samblaster_split_ch
-//  file "*.unmap.fastq" into samblaster_unmap_ch
-//  file "${sample_id}.sam" into samblaster_sam_ch
-//  val (sample_id) into sample_id_ch3
+    tuple val(sample_id),
+          file("${sample_id}.disc.bam"),
+          file("${sample_id}.split.bam"),
+          file("${sample_id}.concordant.bam")
 
   script:
   """
@@ -228,14 +218,15 @@ process bam_to_bed {
   input:
   //file split_txt from split_txt_ch
   //file concordant_txt from concordant_txt_ch
-  tuple val(sample_id), file(disc_bam), file(split_bam), file(concordant_bam) from samblaster_bam_ch
+  tuple val(sample_id),
+        file(disc_bam),
+        file(split_bam),
+        file(concordant_bam)
 
   output:
   tuple val(sample_id),
         file("${sample_id}.split.txt"),
-        file("${sample_id}.concordant.txt") into split_concordant_ch
-
-  file "*.disc.txt" into disc_txt_ch
+        file("${sample_id}.concordant.txt")
 
   script:
   """
@@ -269,15 +260,16 @@ process bam_to_bed {
 //  awk '\$1=="3" {print \$2}' "${sample_id}.concordant.id-freq.txt" > "${sample_id}.concordant.id-freq3.txt"
 //  awk '\$1>3 {print \$2}' "${sample_id}.concordant.id-freq.txt" > "${sample_id}.concordant.id-freqGr3.txt"
 process circle_finder {
-  publishDir "results/circle_finder", mode: "copy"
+  publishDir "results/circle_finder/${sample_id}", mode: "copy"
+  echo true
 
   input:
   tuple val(sample_id),
         file(split_txt),
-        file(concordant_txt) from split_concordant_ch
+        file(concordant_txt)
 
   output:
-  file "*" into circle_finder_ch
+  file "*"
 
   //when:
   //split_id_freq2.size() > 0 & split_id_freq4.size() > 0 & concordant_id_freq3.size() > 0 & concordant_id_freqGr3.size() > 0
@@ -304,7 +296,7 @@ process multiqc {
   publishDir "results/multiqc", mode: "copy"
 
   input:
-  path "*" from fastqc_ch.collect()
+  path "*"
 
   output:
   path 'multiqc_report.html'
@@ -323,8 +315,13 @@ workflow.onComplete {
 // define dsl2 variables
 workflow {
   fastqc(read_pairs_ch)
-  makeBWAindex(params.fasta)
+  makeBWAindex(fasta_for_bwaindex_ch)
   bwamem(read_pairs_ch, makeBWAindex.out.collect())
+  samblaster(bwamem.out)
+  bam_to_bed(samblaster.out)
+  circle_finder(bam_to_bed.out)
+  multiqc(fastqc.out.collect())
+
 }
 
 //  mkdir "${sample_id}"
