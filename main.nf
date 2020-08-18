@@ -1,3 +1,7 @@
+!#/usr/bin/env nextflow
+
+// enable dsl 2
+nextflow.enable.dsl = 2
 /*
 * Pipeline Input Parameter
 */
@@ -8,6 +12,8 @@ params.gtf = "test-datasets/reference/genome.gtf"
 params.outdir = "results"
 params.aligner = "bwa"
 params.minNonOverlap = 10
+
+
 
 
 name = "$workflow.runName"
@@ -88,10 +94,10 @@ process makeBWAindex {
   tag "${fasta}"
   //publishDir "results/bwaIndex", mode: "copy"
   input:
-  path fasta from fasta_for_bwaindex_ch
+  path fasta
 
   output:
-  file "BWAindex" into bwa_index_ch
+  file "BWAindex" 
 
   script:
   """
@@ -108,8 +114,9 @@ process bwamem {
   when: params.aligner == "bwa"
 
   input:
-  tuple val(sample_id), file(reads_file) from reads_ch
-  file index from bwa_index_ch.collect()
+  tuple val(sample_id), file(reads_file)
+  // file index from bwa_index_ch.collect()
+  file index
 
   output:
   file "*" into ch_output_from_bwamem
@@ -305,9 +312,21 @@ process multiqc {
   script:
   """
   multiqc .
-  echo "Done: open the multiqc report in your browser --> results/multiqc/multiqc_report.html"
   """
 }
+
+workflow.onComplete {
+  log.info ( workflow.success ? "\n Done! Open the multiqc report in your browser --> $params.outdir/multiqc/multiqc_report.html\n" : 
+                                "\n Error. Pipeline execution stopped with the following message: ${workflow.errorMessage}\n")
+}
+
+// define dsl2 variables
+workflow {
+  fastqc(read_pairs_ch)
+  makeBWAindex(params.fasta)
+  bwamem(read_pairs_ch, makeBWAindex.out.collect())
+}
+
 //  mkdir "${sample_id}"
 //  grep -w -Ff $split_id_freq2 $split_txt > "${sample_id}/${sample_id}.split_freq2.txt"
 //  grep -w -Ff $split_id_freq4 $split_txt > "${sample_id}/${sample_id}.split_freq4.txt"
