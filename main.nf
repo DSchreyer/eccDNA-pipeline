@@ -67,7 +67,7 @@ if (!params.skip_fastqc){
     publishDir "${params.outdir}/fastqc", mode: "copy"
 
     input:
-    tuple val(sample_id), file(reads_file)
+    tuple val(sample_id), file(reads)
 
     output:
     file("${sample_id}_logs")
@@ -75,7 +75,7 @@ if (!params.skip_fastqc){
     script:
     """
     mkdir ${sample_id}_logs
-    fastqc -o ${sample_id}_logs -f fastq -q $reads_file
+    fastqc --quiet --threads $task.cpus -o ${sample_id}_logs -q $reads
     """
   }
 }
@@ -137,7 +137,7 @@ process bwamem {
   when: params.aligner == "bwa"
 
   input:
-  tuple val(sample_id), file(reads_file)
+  tuple val(sample_id), file(reads)
   file(index)
 
   output:
@@ -146,7 +146,7 @@ process bwamem {
   script:
   index_path = "${index}/${bwa_base}"
   """
-    bwa mem $index_path $reads_file > "${sample_id}".mapped.sam
+    bwa mem -t $task.cpus $index_path $reads > "${sample_id}".mapped.sam
   """
 }
 
@@ -168,16 +168,17 @@ process samblaster {
 
   script:
   """
-  samtools view -h $mapped_reads | \
+  samtools view --threads $task.cpus -h $mapped_reads | \
   samblaster -e --minNonOverlap $params.minNonOverlap -d "${sample_id}.disc.sam" -s "${sample_id}.split.sam" -u "${sample_id}.unmap.fastq" > "${sample_id}.sam"
 
-  samtools view -bS "${sample_id}.sam" -o "${sample_id}.bam"
-  samtools sort -O bam -o "${sample_id}.sorted.bam" "${sample_id}.bam"
-  samtools index "${sample_id}.sorted.bam"
+  samtools view --threads $task.cpus \
+    -bS "${sample_id}.sam" -o "${sample_id}.bam"
+  samtools sort --threads $task.cpus -O bam -o "${sample_id}.sorted.bam" "${sample_id}.bam"
+  samtools index -@ $task.cpus "${sample_id}.sorted.bam"
 
-  samtools view -bS ${sample_id}.disc.sam > "${sample_id}.disc.bam"
-  samtools view -bS ${sample_id}.split.sam > "${sample_id}.split.bam"
-  samtools view -hf 0x2 ${sample_id}.sorted.bam -bS > "${sample_id}.concordant.bam"
+  samtools view --threads $task.cpus -bS ${sample_id}.disc.sam > "${sample_id}.disc.bam"
+  samtools view --threads $task.cpus -bS ${sample_id}.split.sam > "${sample_id}.split.bam"
+  samtools view --threads $task.cpus -hf 0x2 ${sample_id}.sorted.bam -bS > "${sample_id}.concordant.bam"
   """
 }
 
