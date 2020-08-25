@@ -6,14 +6,8 @@ nextflow.enable.dsl = 2
 /*
 * Pipeline Input Parameter
 */
-params.reads = "test-datasets/testdata/*{1,2}.fastq.gz"
 Channel.fromFilePairs(params.reads).set{read_pairs_ch}
-params.fasta = "test-datasets/reference/genome.fa"
 Channel.fromPath(params.fasta).set{fasta_ch}
-params.gtf = "test-datasets/reference/genome.gtf"
-params.outdir = "results"
-params.aligner = "bwa"
-params.minNonOverlap = 10
 
 
 log.info """\
@@ -64,21 +58,48 @@ if ( params.fasta.isEmpty () ){
 }
 
 
-process fastqc {
-  tag "${sample_id}"
+if (!params.skip_fastqc){
+  process fastqc {
+    tag "${sample_id}"
 
-  publishDir "${params.outdir}/fastqc", mode: "copy"
+    publishDir "${params.outdir}/fastqc", mode: "copy"
+
+    input:
+    tuple val(sample_id), file(reads_file)
+
+    output:
+    file("${sample_id}_logs")
+
+    script:
+    """
+    mkdir ${sample_id}_logs
+    fastqc -o ${sample_id}_logs -f fastq -q $reads_file
+    """
+  }
+}
+
+process trim_galore {
+  label 'low_memory'
+  tag "$sample_id"
+  publishDir "${params.outdir}/trim_galore", mode: 'copy'
 
   input:
-  tuple val(sample_id), file(reads_file)
+  tuple val(sample_id), file(reads)
 
   output:
-  file("${sample_id}_logs")
+  tuple val(sample_id), file("*fq.gz") 
+  file "*trimming_report.txt"
+  file "*_fastqc.{zip,html}"
 
   script:
+  c_r1 = params.clip_r1 > 0 ? "--clip_r1 ${params.clip_r1}" : ''
+  c_r2 = params.clip_r2 > 0 ? "--clip_r2 ${params.clip_r2}" : ''
+  tpc_r1 = params.three_prime_clip_r1 > 0 ? "--three_prime_clip_r1 ${params.three_prime_clip_r1}" : ''
+  tpc_r2 = params.three_prime_clip_r2 > 0 ? "--three_prime_clip_r2 ${params.three_prime_clip_r2}" : ''
+  nextseq = params.trim_nextseq > 0 ? "--nextseq ${params.trim_nextseq}" : ''
+
   """
-  mkdir ${sample_id}_logs
-  fastqc -o ${sample_id}_logs -f fastq -q $reads_file
+  trim_galore --paired --fastqc --gzip $c_r1 $c_r2 $tpc_r1 $tpc_r2 $nextseq $reads
   """
 }
 
@@ -101,7 +122,7 @@ process makeBWAindex {
 // $task.cpus -> how many cpus used
 
 process bwamem {
-  publishDir "${params.outdir}/bwamem"
+  //publishDir "${params.outdir}/bwamem/${sample_id}"
   tag "${sample_id}"
   when: params.aligner == "bwa"
 
@@ -120,7 +141,7 @@ process bwamem {
 }
 
 process samblaster {
-  publishDir  "${params.outdir}/samblaster", mode: "copy"
+  publishDir  "${params.outdir}/samblaster/${sample_id}", mode: "copy"
   tag "${sample_id}"
 
   input:
@@ -131,6 +152,8 @@ process samblaster {
           file("${sample_id}.disc.bam"),
           file("${sample_id}.split.bam"),
           file("${sample_id}.concordant.bam")
+    file("${sample_id}.sorted.bam")
+    file("${sample_id}.sorted.bam.bai")
 
   script:
   """
@@ -148,7 +171,8 @@ process samblaster {
 }
 
 process bam_to_bed {
-  publishDir "results/bedFiles", mode: "copy"
+  publishDir "${params.outdir}/bedFiles/${sample_id}", mode: "copy"
+  tag "${sample_id}"
 
   input:
   tuple val(sample_id),
@@ -185,8 +209,9 @@ process bam_to_bed {
 }
 
 process circle_finder {
-  publishDir "results/circle_finder/${sample_id}", mode: "copy"
+  publishDir "${params.outdir}/circle_finder/${sample_id}", mode: "copy"
   echo true
+  tag "${sample_id}"
 
   input:
   tuple val(sample_id),
@@ -205,22 +230,22 @@ process circle_finder {
 }
 
 process multiqc {
-  publishDir "results/multiqc", mode: "copy"
+  publishDir "${params.outdir}/multiqc", mode: "copy"
 
   input:
   path "*"
 
   output:
-  path 'multiqc_report.html'
+  path "${workflow.runName}_multiqc_report.html"
 
   script:
   """
-  multiqc .
+  multiqc -n "${workflow.runName}_multiqc_report.html" .
   """
 }
 
 workflow.onComplete {
-  log.info ( workflow.success ? "\n Done! Open the multiqc report in your browser --> $params.outdir/multiqc/multiqc_report.html\n" : 
+  log.info ( workflow.success ? "\n Done! Open the multiqc report in your browser --> $params.outdir/multiqc/${workflow.runName}_multiqc_report.html\n" : 
                                 "\n Error. Pipeline execution stopped with the following message: ${workflow.errorMessage}\n")
 }
 
@@ -228,9 +253,15 @@ workflow.onComplete {
 workflow {
   fastqc(read_pairs_ch)
   makeBWAindex(fasta_for_bwaindex_ch)
-  bwamem(read_pairs_ch, makeBWAindex.out.collect())
+  if (!params.skipTrimming){
+    trim_galore(read_pairs_ch)
+    bwamem(trim_galore.out[0], makeBWAindex.out.collect())
+    multiqc(fastqc.out.mix(trim_galore.out[1]).collect())
+  } else {
+    bwamem(read_pairs_ch, makeBWAindex.out.collect())
+    multiqc(fastqc.out.collect())
+  }
   samblaster(bwamem.out)
-  bam_to_bed(samblaster.out)
-  circle_finder(bam_to_bed.out)
-  multiqc(fastqc.out.collect())
+  bam_to_bed(samblaster.out[0])
+  circle_finder(bam_to_bed.out[0])
 }
