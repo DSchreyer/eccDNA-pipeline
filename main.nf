@@ -17,6 +17,7 @@ log.info """\
       Genome: ${params.fasta}
       Reads:  ${params.reads}
       Outdir: ${params.outdir}
+      Save Trimmed: ${params.saveTrimmed}
       ==================================
       """
       .stripIndent()
@@ -61,6 +62,7 @@ if ( params.fasta.isEmpty () ){
 if (!params.skip_fastqc){
   process fastqc {
     tag "${sample_id}"
+    label "low_memory"
 
     publishDir "${params.outdir}/fastqc", mode: "copy"
 
@@ -81,7 +83,13 @@ if (!params.skip_fastqc){
 process trim_galore {
   label 'low_memory'
   tag "$sample_id"
-  publishDir "${params.outdir}/trim_galore", mode: 'copy'
+  publishDir "${params.outdir}/trim_galore", mode: 'copy',
+   saveAs: {filename ->
+                if (filename.indexOf("_fastqc") > 0) "FastQC/$filename"
+                else if (filename.indexOf("trimming_report.txt") > 0) "logs/$filename"
+                else if (params.saveTrimmed) filename
+                else if (!params.saveTrimmed) null
+   }
 
   input:
   tuple val(sample_id), file(reads)
@@ -105,6 +113,7 @@ process trim_galore {
 
 process makeBWAindex {
   tag "${fasta}"
+  label "high_memory"
 
   input:
   path(fasta)
@@ -124,6 +133,7 @@ process makeBWAindex {
 process bwamem {
   //publishDir "${params.outdir}/bwamem/${sample_id}"
   tag "${sample_id}"
+  label "high_memory"
   when: params.aligner == "bwa"
 
   input:
@@ -142,6 +152,7 @@ process bwamem {
 
 process samblaster {
   publishDir  "${params.outdir}/samblaster/${sample_id}", mode: "copy"
+  label "mid_memory"
   tag "${sample_id}"
 
   input:
@@ -173,6 +184,7 @@ process samblaster {
 process bam_to_bed {
   publishDir "${params.outdir}/bedFiles/${sample_id}", mode: "copy"
   tag "${sample_id}"
+  label "mid_memory"
 
   input:
   tuple val(sample_id),
@@ -212,6 +224,7 @@ process circle_finder {
   publishDir "${params.outdir}/circle_finder/${sample_id}", mode: "copy"
   echo true
   tag "${sample_id}"
+  label "mid_memory"
 
   input:
   tuple val(sample_id),
@@ -231,6 +244,7 @@ process circle_finder {
 
 process multiqc {
   publishDir "${params.outdir}/multiqc", mode: "copy"
+  label "low_memory"
 
   input:
   path "*"
@@ -251,16 +265,21 @@ workflow.onComplete {
 
 // define dsl2 variables
 workflow {
-  fastqc(read_pairs_ch)
+
   makeBWAindex(fasta_for_bwaindex_ch)
-  if (!params.skipTrimming){
+  if (!params.skipTrimming && !params.skip_fastqc){
+    fastqc(read_pairs_ch)
     trim_galore(read_pairs_ch)
     bwamem(trim_galore.out[0], makeBWAindex.out.collect())
     multiqc(fastqc.out.mix(trim_galore.out[1]).collect())
-  } else {
+  } else if (!params.skip_fastqc && params.skipTrimming) {
+    fastqc(read_pairs_ch)
     bwamem(read_pairs_ch, makeBWAindex.out.collect())
     multiqc(fastqc.out.collect())
+  } else if (params.skip_fastqc && params.skipTrimming) {
+    bwamem(read_pairs_ch, makeBWAindex.out.collect())
   }
+
   samblaster(bwamem.out)
   bam_to_bed(samblaster.out[0])
   circle_finder(bam_to_bed.out[0])
