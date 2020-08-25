@@ -1,6 +1,4 @@
-# You can use this file to create a conda environment for this pipeline:
-#   conda env create -f environment.yml
-name: eccdna-pipeline
+name: myenv
 channels:
   - conda-forge
   - bioconda
@@ -17,5 +15,6 @@ dependencies:
   - bioconda::multiqc=1.7
   - bioconda::bwa=0.7.17
   - bioconda::samblaster=0.1.26
+  - bioconda::bedtools=2.29.2
   - bioconda::trim-galore=0.6.5
   - bioconda::samtools=1.10
