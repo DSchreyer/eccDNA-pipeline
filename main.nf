@@ -7,6 +7,7 @@ nextflow.enable.dsl = 2
 * Pipeline Input Parameter
 */
 Channel.fromFilePairs(params.reads).set{read_pairs_ch}
+read_pairs_ch.view()
 Channel.fromPath(params.fasta).set{fasta_ch}
 
 
@@ -134,6 +135,7 @@ process bwamem {
   //publishDir "${params.outdir}/bwamem/${sample_id}"
   tag "${sample_id}"
   label "high_memory"
+  cpus 10
   when: params.aligner == "bwa"
 
   input:

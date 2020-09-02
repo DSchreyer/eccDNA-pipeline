@@ -11,7 +11,7 @@ COPY /test-datasets .
 COPY /conf .
 COPY /nextflow.config .
 COPY /bin .
-COPY testdata .
+COPY /test-datasets .
 
 # run conda environment inside docker container
 SHELL ["/bin/bash", "--login", "-c"]
