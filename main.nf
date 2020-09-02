@@ -3,12 +3,6 @@
 // enable dsl 2
 nextflow.enable.dsl = 2
 
-/*
-* Pipeline Input Parameter
-*/
-Channel.fromFilePairs(params.reads).set{read_pairs_ch}
-read_pairs_ch.view()
-Channel.fromPath(params.fasta).set{fasta_ch}
 
 
 log.info """\
@@ -23,8 +17,8 @@ log.info """\
       """
       .stripIndent()
 
-//Channel.fromPath(params.gtf).set{bwa_index_gtf}
 
+Channel.fromPath(params.fasta).set{fasta_ch}
 if ( params.fasta.isEmpty () ){
     exit 1, "Please specify --fasta with the path to your reference"
 } else if("${params.fasta}".endsWith(".gz")){
@@ -266,6 +260,10 @@ workflow.onComplete {
                                 "\n Error. Pipeline execution stopped with the following message: ${workflow.errorMessage}\n")
 }
 
+/*
+* Pipeline Input Parameter
+*/
+Channel.fromFilePairs(params.reads).set{read_pairs_ch}
 // define dsl2 variables
 workflow {
 
