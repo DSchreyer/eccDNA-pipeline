@@ -229,8 +229,7 @@ process circle_finder {
         file(concordant_txt)
 
   output:
-  file "*"
-
+  file "${sample_id}.microDNA-JT.txt"
   script:
   """
   circle_finder.sh $sample_id \
