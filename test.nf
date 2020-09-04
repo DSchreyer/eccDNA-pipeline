@@ -307,8 +307,8 @@ process circle_finder {
   file_exists ${sample_id}.split_freq2.oneline.S-R-S-CHR-S-ST.ID.txt
 
   #Step 9: Based on unique id I am extracting one continuously mapped reads and their partner mapped as split read (3 lines for each id) 
-  grep -w -Ff ${sample_id}.split_freq2.oneline.S-R-S-CHR-S-ST.ID.txt ${sample_id}.concordant_freq3.txt > \
-      ${sample_id}.concordant_freq3.2SPLIT-1M.txt
+  grep -w -Ff "${sample_id}.split_freq2.oneline.S-R-S-CHR-S-ST.ID.txt" "${sample_id}.concordant_freq3.txt" > \
+      "${sample_id}.concordant_freq3.2SPLIT-1M.txt"
 
   # check if output files exist and are not empty
   file_exists ${sample_id}.concordant_freq3.2SPLIT-1M.txt
@@ -323,7 +323,7 @@ process circle_finder {
           else  {printf ("%s\\tconfusing\\n",$0)}}' | \
       awk 'BEGIN{FS=OFS="\\t"} {gsub(" ", "", $8)} 1' | \
       awk '{printf ("%s\\t%d\\n",$0,($3-$2)+1)}' | \
-      sort -k4,4 -k10,10n | sed 'N;N;s/\n/\t/g' | \
+      sort -k4,4 -k10,10n | sed 'N;N;s/\\n/\\t/g' | \
       awk '{if ($5==$15) {print $0}  \
           else if (($5=="1" && $15=="2" && $25=="1") || ($5=="2" && $15=="1" && $25=="2")) \
               {printf ("%s\\t%d\\t%d\\t%s\\t%d\\t%d\\t%s\\t%s\\t%s\\t%d\\t%s\\t%d\\t%d\\t%s\\t%d\\t%d\\t%s\\t%s\\t%s\\t%d\\t%s\\t%d\\t%d\\t%s\\t%d\\t%d\\t%s\\t%s\\t%s\\t%d\\n", $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)} \
@@ -378,7 +378,6 @@ workflow {
     makeBWAindex(fasta_for_bwaindex_ch)
     ch_bwa_index = makeBWAindex.out.collect()
   }
-  read_pairs_ch.view()
 
   if (!params.skipTrimming && !params.skip_fastqc){
     fastqc(read_pairs_ch)
