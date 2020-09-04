@@ -367,20 +367,29 @@ workflow.onComplete {
 Channel.fromFilePairs(params.reads).set{read_pairs_ch}
 // define dsl2 variables
 workflow {
-  if (!skipIndexing){
+  if (params.bwa_index) {
+    lastPath = params.bwa_index.lastIndexOf(File.separator)
+    bwa_dir  = params.bwa_index.substring(0,lastPath+1)
+    bwa_base = params.bwa_index.substring(lastPath+1)
+    Channel
+        .fromPath(bwa_dir, checkIfExists: true)
+        .set { ch_bwa_index }
+  } else {
     makeBWAindex(fasta_for_bwaindex_ch)
+    ch_bwa_index = makeBWAindex.out.collect()
   }
+
   if (!params.skipTrimming && !params.skip_fastqc){
     fastqc(read_pairs_ch)
     trim_galore(read_pairs_ch)
-    bwamem(trim_galore.out[0], makeBWAindex.out.collect())
+    bwamem(trim_galore.out[0], ch_bwa_index)
     multiqc(fastqc.out.mix(trim_galore.out[1]).collect())
   } else if (!params.skip_fastqc && params.skipTrimming) {
     fastqc(read_pairs_ch)
-    bwamem(read_pairs_ch, makeBWAindex.out.collect())
+    bwamem(read_pairs_ch, ch_bwa_index)
     multiqc(fastqc.out.collect())
   } else if (params.skip_fastqc && params.skipTrimming) {
-    bwamem(read_pairs_ch, makeBWAindex.out.collect())
+    bwamem(read_pairs_ch, ch_bwa_index)
   }
 
   samblaster(bwamem.out)
