@@ -18,6 +18,7 @@ log.info """\
       .stripIndent()
 
 
+if (!bwa_index) {
 Channel.fromPath(params.fasta).set{fasta_ch}
 if ( params.fasta.isEmpty () ){
     exit 1, "Please specify --fasta with the path to your reference"
@@ -51,6 +52,7 @@ if ( params.fasta.isEmpty () ){
 
     lastPath = params.fasta.lastIndexOf(File.separator)
     bwa_base = params.fasta.substring(lastPath+1)
+}
 }
 
 
