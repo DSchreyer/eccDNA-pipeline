@@ -18,7 +18,7 @@ log.info """\
       .stripIndent()
 
 
-if (!bwa_index) {
+if (!params.bwa_index) {
 Channel.fromPath(params.fasta).set{fasta_ch}
 if ( params.fasta.isEmpty () ){
     exit 1, "Please specify --fasta with the path to your reference"
