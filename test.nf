@@ -236,9 +236,9 @@ process circle_finder {
         file(concordant_txt)
 
   output:
-  file("${sample_id}.microDNA-JT.txt") optional true
+  file ("${sample_id}.microDNA-JT.txt") 
 
-  script:
+  shell:
   '''
   #!/usr/bin/env bash
   set -u
@@ -341,8 +341,6 @@ process circle_finder {
           else if ($17=="-" && $19=="second" && $12<$2 && $22>=$12 && $23<=$3) {printf ("%s\\t%d\\t%d\\n",$1,$12,$3)} \
           else if ($7=="-" && $9=="second" && $2<$12 && $22>=$2 && $23<=$13) {printf ("%s\\t%d\\t%d\\n",$1,$2,$13)} }' | \
       sort | uniq -c | awk '{printf ("%s\\t%d\\t%d\\t%d\\n",$2,$3,$4,$1)}' > ${sample_id}.microDNA-JT.txt
-
-  file_exists ${sample_id}.microDNA-JT.txt
   '''
 }
 
