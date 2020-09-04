@@ -235,10 +235,6 @@ process circle_finder {
         file(split_txt),
         file(concordant_txt)
 
-  output:
-  "*.microDNA-JT.txt"
-  "*split*"
-
   shell:
   '''
   #!/usr/bin/env bash
