@@ -337,11 +337,11 @@ process circle_finder {
   #Step 11: Unique number of microDNA with number of split reads
   awk '$1==$11 && $1==$21 && $7==$17'  ${sample_id}.concordant_freq3.2SPLIT-1M.inoneline.txt | \
       awk '($7=="+" && $27=="-") || ($7=="-" && $27=="+")' | \
-      awk '{if ($17=="+" && $19=="second" && $12<$2 && $22>=$12 && $23<=$3) {printf ("%s\t%d\t%d\n",$1,$12,$3)} \
-          else if ($7=="+" && $9=="second" && $2<$12 && $22>=$2 && $23<=$13) {printf ("%s\t%d\t%d\n",$1,$2,$13)} \
-          else if ($17=="-" && $19=="second" && $12<$2 && $22>=$12 && $23<=$3) {printf ("%s\t%d\t%d\n",$1,$12,$3)} \
-          else if ($7=="-" && $9=="second" && $2<$12 && $22>=$2 && $23<=$13) {printf ("%s\t%d\t%d\n",$1,$2,$13)} }' | \
-      sort | uniq -c | awk '{printf ("%s\t%d\t%d\t%d\n",$2,$3,$4,$1)}' > ${sample_id}.microDNA-JT.txt
+      awk '{if ($17=="+" && $19=="second" && $12<$2 && $22>=$12 && $23<=$3) {printf ("%s\\t%d\\t%d\\n",$1,$12,$3)} \
+          else if ($7=="+" && $9=="second" && $2<$12 && $22>=$2 && $23<=$13) {printf ("%s\\t%d\\t%d\\n",$1,$2,$13)} \
+          else if ($17=="-" && $19=="second" && $12<$2 && $22>=$12 && $23<=$3) {printf ("%s\\t%d\\t%d\\n",$1,$12,$3)} \
+          else if ($7=="-" && $9=="second" && $2<$12 && $22>=$2 && $23<=$13) {printf ("%s\\t%d\\t%d\\n",$1,$2,$13)} }' | \
+      sort | uniq -c | awk '{printf ("%s\\t%d\\t%d\\t%d\\n",$2,$3,$4,$1)}' > ${sample_id}.microDNA-JT.txt
 
   file_exists ${sample_id}.microDNA-JT.txt
   '''
