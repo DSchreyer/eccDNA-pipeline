@@ -236,9 +236,9 @@ process circle_finder {
         file(concordant_txt)
 
   output:
-  file("${sample_id}.microDNA-JT.txt")
+  file("${sample_id}.microDNA-JT.txt") optional true
 
-  shell:
+  script:
   '''
   #!/usr/bin/env bash
   set -u
