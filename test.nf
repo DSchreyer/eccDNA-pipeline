@@ -52,7 +52,12 @@ if ( params.fasta.isEmpty () ){
 
     lastPath = params.fasta.lastIndexOf(File.separator)
     bwa_base = params.fasta.substring(lastPath+1)
-}
+  } 
+} else {
+    lastPath = params.bwa_index.lastIndexOf(File.separator) 
+    bwa_dir  = params.bwa_index.substring(0,lastPath+1)
+    bwa_base = params.bwa_index.substring(lastPath+1)
+    Channel .fromPath(bwa_dir, checkIfExists: true) .set { ch_bwa_index }
 }
 
 
@@ -369,29 +374,23 @@ workflow.onComplete {
 Channel.fromFilePairs(params.reads).set{read_pairs_ch}
 // define dsl2 variables
 workflow {
-  if (params.bwa_index) {
-    lastPath = params.bwa_index.lastIndexOf(File.separator)
-    bwa_dir  = params.bwa_index.substring(0,lastPath+1)
-    bwa_base = params.bwa_index.substring(lastPath+1)
-    Channel
-        .fromPath(bwa_dir, checkIfExists: true)
-        .set { ch_bwa_index }
-  } else {
+  if (!params.bwa_index) {
     makeBWAindex(fasta_for_bwaindex_ch)
     ch_bwa_index = makeBWAindex.out.collect()
   }
+  read_pairs_ch.view()
 
   if (!params.skipTrimming && !params.skip_fastqc){
     fastqc(read_pairs_ch)
     trim_galore(read_pairs_ch)
-    bwamem(trim_galore.out[0], ch_bwa_index)
+    bwamem(trim_galore.out[0], ch_bwa_index.collect())
     multiqc(fastqc.out.mix(trim_galore.out[1]).collect())
   } else if (!params.skip_fastqc && params.skipTrimming) {
     fastqc(read_pairs_ch)
-    bwamem(read_pairs_ch, ch_bwa_index)
+    bwamem(read_pairs_ch, ch_bwa_index.collect())
     multiqc(fastqc.out.collect())
   } else if (params.skip_fastqc && params.skipTrimming) {
-    bwamem(read_pairs_ch, ch_bwa_index)
+    bwamem(read_pairs_ch, ch_bwa_index.collect())
   }
 
   samblaster(bwamem.out)
