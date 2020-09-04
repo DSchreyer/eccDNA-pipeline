@@ -236,7 +236,8 @@ process circle_finder {
         file(concordant_txt)
 
   output:
-  file ("${sample_id}.microDNA-JT.txt") 
+  file ("${sample_id}.microDNA-JT.txt") optional true
+  file ("${sample_id}.circle_finder_exit_log.txt") optional true
 
   shell:
   '''
@@ -257,7 +258,7 @@ process circle_finder {
   Stopped circle_finder.
   No circular DNA was identified.
   ===================================
-  " && exit
+  " > ${sample_id}.circle_finder_exit_log.txt && exit
   }
 
   awk '{print $4}' ${split} | sort | uniq -c > ${sample_id}.split.id-freq.txt
