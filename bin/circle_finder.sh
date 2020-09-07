@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env/ bash
 set -u
 
 sample_id=${1}
