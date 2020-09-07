@@ -137,6 +137,7 @@ process bwamem {
   tag "${sample_id}"
   label "high_memory"
   when: params.aligner == "bwa"
+  cpus = 10
 
   input:
   tuple val(sample_id), file(reads)
@@ -153,9 +154,10 @@ process bwamem {
 }
 
 process samblaster {
-  publishDir  "${params.outdir}/samblaster/${sample_id}", mode: "copy"
+  // publishDir  "${params.outdir}/samblaster/${sample_id}", mode: "copy"
   label "mid_memory"
   tag "${sample_id}"
+  cpus = 10
 
   input:
   tuple val(sample_id), file(mapped_reads)
@@ -185,7 +187,7 @@ process samblaster {
 }
 
 process bam_to_bed {
-  publishDir "${params.outdir}/bedFiles/${sample_id}", mode: "copy"
+  // publishDir "${params.outdir}/bedFiles/${sample_id}", mode: "copy"
   tag "${sample_id}"
   label "mid_memory"
 
