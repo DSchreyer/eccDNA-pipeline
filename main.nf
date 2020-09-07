@@ -218,7 +218,7 @@ process bam_to_bed {
 }
 
 process circle_finder {
-  publishDir "${params.outdir}/circle_finder/${sample_id}", mode: "copy"
+  publishDir "${params.outdir}/circle_finder/", mode: "copy"
   echo true
   tag "${sample_id}"
   label "mid_memory"
