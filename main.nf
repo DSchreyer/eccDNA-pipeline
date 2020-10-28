@@ -106,8 +106,8 @@ process trim_galore {
   c_r2 = params.clip_r2 > 0 ? "--clip_r2 ${params.clip_r2}" : ''
   tpc_r1 = params.three_prime_clip_r1 > 0 ? "--three_prime_clip_r1 ${params.three_prime_clip_r1}" : ''
   tpc_r2 = params.three_prime_clip_r2 > 0 ? "--three_prime_clip_r2 ${params.three_prime_clip_r2}" : ''
-  a1 = params.adapter1 != "" ? "--adapter ${params.adapter1}" : ''
-  a2 = params.adapter2 != "" ? "--adapter2 ${params.adapter2}" : ''
+  a1 = "--adapter ${params.adapter1}" : ''
+  a2 = "--adapter2 ${params.adapter2}" : ''
   bqr = "-q ${params.base_quality}"
   //nextseq = params.trim_nextseq > 0 ? "--nextseq ${params.trim_nextseq}" : ''
 
