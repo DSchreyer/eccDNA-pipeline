@@ -169,8 +169,8 @@ process samblaster {
     tuple val(sample_id),
           file("${sample_id}.disc.bam"),
           file("${sample_id}.split.bam"),
-          file("${sample_id}.concordant.bam")
-    file("${sample_id}.sorted.bam")
+          file("${sample_id}.concordant.bam"),
+          file("${sample_id}.sorted.bam")
     file("${sample_id}.sorted.bam.bai")
 
   script:
@@ -198,7 +198,8 @@ process bam_to_bed {
   tuple val(sample_id),
         file(disc_bam),
         file(split_bam),
-        file(concordant_bam)
+        file(concordant_bam),
+        file(sorted_bam)
 
   output:
   tuple val(sample_id),
@@ -218,7 +219,7 @@ process bam_to_bed {
       (\$9=="H" && \$NF=="M")) {printf ("%s\tsecond\\n",\$0)} }' | \
     awk 'BEGIN{FS=OFS="\t"} {gsub(" ", "", \$8)} 1' > '${sample_id}.split.txt'
 
-  bedtools bamtobed -cigar -i ${concordant_bam} | \
+  bedtools bamtobed -cigar -i ${sorted_bam} | \
     sed -e 's/\\// /g' | \
     awk '{printf ("%s\t%d\t%d\t%s\t%d\t%d\t%s\t%s\\n",\$1,\$2,\$3,\$4,\$5,\$6,\$7,\$8)}' > '${sample_id}.concordant.txt'
 
@@ -339,7 +340,7 @@ process circle_finder {
   file_exists ${sample_id}.concordant_freq3.2SPLIT-1M.inoneline.txt
 
   #Step 11: Unique number of microDNA with number of split reads
-  awk '$1==$11 && $1==$21 && $7==$17'  ${sample_id}.concordant_freq3.2SPLIT-1M.inoneline.txt | \
+  awk '$1==$11 && $1==$21 && $7==$17 && length($8)<=12 && length($18)<=12 && length($28)<=12'  ${sample_id}.concordant_freq3.2SPLIT-1M.inoneline.txt | \
       awk '($7=="+" && $27=="-") || ($7=="-" && $27=="+")' | \
       awk '{if ($17=="+" && $19=="second" && $12<$2 && $22>=$12 && $23<=$3) {printf ("%s\\t%d\\t%d\\n",$1,$12,$3)} \
           else if ($7=="+" && $9=="second" && $2<$12 && $22>=$2 && $23<=$13) {printf ("%s\\t%d\\t%d\\n",$1,$2,$13)} \
