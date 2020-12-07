@@ -3,15 +3,19 @@
 // enable dsl 2
 nextflow.enable.dsl = 2
 
-
-
 log.info """\
       e c c D N A - N F  P I P E L I N E
       ==================================
       Name:   ${workflow.runName}
       Genome: ${params.fasta}
       Reads:  ${params.reads}
+      Reference Fasta: ${params.fasta}
+      BWA Index: ${params.bwa_index}
       Outdir: ${params.outdir}
+      Profile: ${params.profile}
+      Adapter1: ${params.adapter1}
+      Adapter2: ${params.adapter2}
+      Trim Base Quality: ${params.base_quality}
       Save Trimmed: ${params.saveTrimmed}
       ==================================
       """
