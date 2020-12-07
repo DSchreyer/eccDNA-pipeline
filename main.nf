@@ -12,7 +12,6 @@ log.info """\
       Reference Fasta: ${params.fasta}
       BWA Index: ${params.bwa_index}
       Outdir: ${params.outdir}
-      Profile: ${params.profile}
       Adapter1: ${params.adapter1}
       Adapter2: ${params.adapter2}
       Trim Base Quality: ${params.base_quality}
@@ -20,7 +19,6 @@ log.info """\
       ==================================
       """
       .stripIndent()
-
 
 if (!params.bwa_index) {
 Channel.fromPath(params.fasta).set{fasta_ch}
@@ -58,7 +56,7 @@ if ( params.fasta.isEmpty () ){
     bwa_base = params.fasta.substring(lastPath+1)
   } 
 } else {
-    lastPath = params.bwa_index.lastIndexOf(File.separator) 
+    lastPath = params.bwa_index.lastIndexOf(File.separator)
     bwa_dir  = params.bwa_index.substring(0,lastPath+1)
     bwa_base = params.bwa_index.substring(lastPath+1)
     Channel .fromPath(bwa_dir, checkIfExists: true) .set { ch_bwa_index }
@@ -87,7 +85,7 @@ if (!params.skip_fastqc){
 }
 
 process trim_galore {
-  label 'low_memory'
+  label 'mid_memory'
   tag "$sample_id"
   publishDir "${params.outdir}/trim_galore", mode: 'copy',
    saveAs: {filename ->
