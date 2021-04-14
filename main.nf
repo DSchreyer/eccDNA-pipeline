@@ -138,7 +138,7 @@ process makeBWAindex {
 // $task.cpus -> how many cpus used
 
 process bwamem {
-  //publishDir "${params.outdir}/bwamem/${sample_id}"
+  publishDir "${params.outdir}/bwamem/", pattern: '*.stats.out', mode: 'copy'
   tag "${sample_id}"
   label "high_memory"
   when: params.aligner == "bwa"
@@ -150,11 +150,13 @@ process bwamem {
 
   output:
   tuple val(sample_id), file("*.mapped.sam")
+  tuple val(sample_id), file("*.stats.out")
 
   script:
   index_path = "${index}/${bwa_base}"
   """
     bwa mem -t $task.cpus $index_path $reads > "${sample_id}".mapped.sam
+    samtools flagstat "${sample_id}".mapped.sam > ${sample_id}.stats.out
   """
 }
 
@@ -397,7 +399,7 @@ workflow {
     bwamem(read_pairs_ch, ch_bwa_index.collect())
   }
 
-  samblaster(bwamem.out)
+  samblaster(bwamem.out[0])
   bam_to_bed(samblaster.out[0])
   circle_finder(bam_to_bed.out[0])
 }
